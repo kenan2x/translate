@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, Optional
 
 import httpx
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 
 from app.config import Settings
 from app.dependencies import get_settings
 
-security = HTTPBearer()
+logger = logging.getLogger(__name__)
+
+security = HTTPBearer(auto_error=False)
 
 _jwks_cache: Optional[Dict[str, Any]] = None
 
@@ -71,15 +74,31 @@ async def verify_token(token: Optional[str]) -> Dict[str, Any]:
         raise AuthError("No token provided")
     if not token or len(token) < 10:
         raise AuthError("Invalid token")
-    # In production, this fetches JWKS and validates
-    # For testing, we'll mock this function
     raise AuthError("JWKS validation not configured for local dev")
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     settings: Settings = Depends(get_settings),
 ) -> Dict[str, Any]:
+    # --- Dev/test bypass ---
+    if settings.AUTH_DISABLED:
+        logger.warning("AUTH_DISABLED=true — using mock user (do NOT use in production)")
+        return {
+            "sub": "dev-user-001",
+            "email": settings.DEV_USER_EMAIL,
+            "name": settings.DEV_USER_NAME,
+            "groups": ["admins"],
+            "tier": settings.DEV_USER_TIER,
+        }
+
+    # --- Production: Authentik JWT ---
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
     try:
         jwks = await fetch_jwks(settings.AUTHENTIK_URL)
         payload = decode_token(

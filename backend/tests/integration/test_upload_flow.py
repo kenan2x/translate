@@ -84,6 +84,22 @@ def test_upload_empty_file_rejected():
 
 def test_upload_without_auth_rejected():
     app = create_app()
+
+    # Override settings to ensure AUTH_DISABLED=False
+    from app.dependencies import get_settings
+    from app.config import Settings
+
+    def mock_settings():
+        return Settings(
+            DATABASE_URL="postgresql+asyncpg://test:test@localhost/test_db",
+            REDIS_URL="redis://localhost:6379/1",
+            MINIO_ENDPOINT="localhost:9000",
+            MINIO_ACCESS_KEY="testkey",
+            MINIO_SECRET_KEY="testsecret",
+            AUTH_DISABLED=False,
+        )
+
+    app.dependency_overrides[get_settings] = mock_settings
     client = TestClient(app)
     resp = client.post(
         "/api/v1/upload",

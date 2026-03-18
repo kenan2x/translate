@@ -1,0 +1,120 @@
+###############################################
+# Dev/test stack: Auth bypass, no MinIO (use external)
+#
+# Kullanim:
+#   cp .env.dev .env
+#   docker compose -f docker-compose.dev.yml up -d
+###############################################
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: translate
+      POSTGRES_PASSWORD: translate
+      POSTGRES_DB: translate_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U translate -d translate_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    image: kenankarakoc/translate-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      # DB & Redis (container network)
+      DATABASE_URL: postgresql+asyncpg://translate:translate@postgres:5432/translate_db
+      REDIS_URL: redis://redis:6379/0
+
+      # MinIO — kendi sunucunu goster
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio.takasbank.local:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-translate-files}
+
+      # Auth bypass
+      AUTH_DISABLED: "true"
+      DEV_USER_EMAIL: ${DEV_USER_EMAIL:-dev@takasbank.com.tr}
+      DEV_USER_NAME: ${DEV_USER_NAME:-Dev User}
+      DEV_USER_TIER: ${DEV_USER_TIER:-admin}
+
+      # vLLM
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-http://172.30.146.11:8001/v1}
+      VLLM_API_KEY: ${VLLM_API_KEY:-dummy}
+      VLLM_MODEL: ${VLLM_MODEL:-Qwen/Qwen3.5-122B-A10B-FP8}
+
+      # Proxy
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-172.30.146.11,localhost,127.0.0.1,10.0.0.0/8}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery-worker:
+    image: kenankarakoc/translate-backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    entrypoint: []
+    command: ["celery", "-A", "app.core.queue", "worker", "--loglevel=info", "--concurrency=2"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://translate:translate@postgres:5432/translate_db
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio.takasbank.local:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-translate-files}
+      AUTH_DISABLED: "true"
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-http://172.30.146.11:8001/v1}
+      VLLM_API_KEY: ${VLLM_API_KEY:-dummy}
+      VLLM_MODEL: ${VLLM_MODEL:-Qwen/Qwen3.5-122B-A10B-FP8}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-172.30.146.11,localhost,127.0.0.1,10.0.0.0/8}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    image: kenankarakoc/translate-frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
