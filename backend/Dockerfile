@@ -17,8 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml .
 
 # requirements.txt olustur ve sadece dependency'leri kur
-RUN pip install --no-cache-dir tomli && \
-    python -c "import tomli,pathlib;d=tomli.loads(pathlib.Path('pyproject.toml').read_bytes());print('\n'.join(d['project']['dependencies']))" > /tmp/requirements.txt && \
+RUN python -c "import tomllib;f=open('pyproject.toml','rb');d=tomllib.load(f);print('\n'.join(d['project']['dependencies']))" > /tmp/requirements.txt && \
     pip install --no-cache-dir -r /tmp/requirements.txt
 
 ##############################################
