@@ -31,7 +31,9 @@ PDFMathTranslate + vLLM (Qwen3.5-122B)
 | Frontend | Next.js 14, React 18, PDF.js 4 |
 | Test | pytest (backend), Vitest (frontend) |
 
-## Hizli Baslangic
+## Hizli Baslangic (Dev/Test — Authentik'siz)
+
+Authentik SSO olmadan hizlica test etmek icin:
 
 ### 1. Klonla
 
@@ -41,6 +43,64 @@ cd translate
 ```
 
 ### 2. Env dosyasini hazirla
+
+```bash
+cp .env.dev .env
+```
+
+`.env.dev` icinde onemli degerler:
+
+```bash
+# MinIO — kendi sunucunuzu gosterin
+MINIO_ENDPOINT=10.20.1.50:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=minioadmin
+MINIO_BUCKET=translate-files
+
+# vLLM (opsiyonel — yoksa ceviri calismaz ama upload/kuyruk/admin calisir)
+VLLM_BASE_URL=http://172.30.146.11:8001/v1
+
+# Dev kullanici (AUTH_DISABLED=true oldugu icin bu bilgilerle giris yapilir)
+DEV_USER_EMAIL=kenan@takasbank.com.tr
+DEV_USER_NAME=Kenan Karakoc
+DEV_USER_TIER=admin
+```
+
+### 3. Dev stack'i baslat
+
+```bash
+docker compose -f docker-compose.dev.yml up -d
+```
+
+Bu komut sirasiyla baslatir:
+- **PostgreSQL 16** — healthcheck ile
+- **Redis 7** — healthcheck ile
+- **Backend** — `AUTH_DISABLED=true` ile (Authentik gerekmez, otomatik dev kullanici)
+- **Celery Worker** — ceviri kuyrugu
+- **Frontend** — Next.js standalone
+
+> **Not:** MinIO bu stack'te yoktur — kendi MinIO sunucunuzu `.env` icinde belirtin.
+
+### 4. Kontrol
+
+```bash
+# Servis durumlari
+docker compose -f docker-compose.dev.yml ps
+
+# Backend health
+curl http://localhost:8080/health
+
+# Frontend
+open http://localhost:3000
+```
+
+> **AUTH_DISABLED modu:** Backend otomatik olarak `.env`'deki `DEV_USER_*` bilgileriyle bir mock kullanici olusturur. Token/login gerekmez, tum API'ler dogrudan calisir.
+
+---
+
+## Production Kurulumu (Authentik ile)
+
+### 1. Env dosyasini hazirla
 
 ```bash
 cp .env.example .env
@@ -60,7 +120,7 @@ AUTHENTIK_CLIENT_ID=<client-id>
 AUTHENTIK_CLIENT_SECRET=<client-secret>
 ```
 
-### 3. Servisleri baslat
+### 2. Servisleri baslat
 
 ```bash
 docker compose up -d
@@ -72,7 +132,7 @@ Bu komut sirasiyla baslatir:
 - Celery Worker (4 concurrent)
 - Frontend (Next.js standalone)
 
-### 4. Kontrol
+### 3. Kontrol
 
 ```bash
 # Servis durumlari
@@ -144,7 +204,7 @@ translate/
 │   │   │   ├── history.py       # User history
 │   │   │   └── admin/           # 8 admin endpoints
 │   │   ├── core/                # Business logic
-│   │   │   ├── auth.py          # Authentik JWT
+│   │   │   ├── auth.py          # Authentik JWT + AUTH_DISABLED bypass
 │   │   │   ├── quota.py         # Tier-based quotas
 │   │   │   ├── priority.py      # VIP queue + starvation protection
 │   │   │   ├── rate_limit.py    # Redis sliding window
@@ -172,9 +232,11 @@ translate/
 ├── scripts/
 │   ├── seed_glossary.py         # Initial glossary terms
 │   └── create_admin.py          # First admin user
-├── docker-compose.yml           # Production stack
+├── docker-compose.yml           # Production stack (Authentik + MinIO)
+├── docker-compose.dev.yml       # Dev/test stack (AUTH_DISABLED, MinIO haric)
 ├── docker-compose.test.yml      # Test runner stack
-└── .env.example                 # Environment template
+├── .env.example                 # Production env sablonu
+└── .env.dev                     # Dev/test env sablonu
 ```
 
 ## Kullanici Tipleri
@@ -201,11 +263,13 @@ translate/
 ## Durdurma
 
 ```bash
-# Servisleri durdur
-docker compose down
+# Dev/test stack
+docker compose -f docker-compose.dev.yml down
+docker compose -f docker-compose.dev.yml down -v   # verileri de sil
 
-# Servisleri durdur + verileri sil
-docker compose down -v
+# Production stack
+docker compose down
+docker compose down -v   # verileri de sil
 ```
 
 ## Lisans
