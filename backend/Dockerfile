@@ -11,12 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY pyproject.toml .
 # Sadece dependency'leri kur (app kodunu degil)
-RUN pip install --no-cache-dir --prefix=/install $(python -c "
-import tomllib, pathlib
-data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
-deps = data['project']['dependencies']
-print(' '.join(deps))
-")
+RUN pip install --no-cache-dir --prefix=/install $(python -c "import tomllib,pathlib;d=tomllib.loads(pathlib.Path('pyproject.toml').read_text());print(' '.join(d['project']['dependencies']))")
 
 ##############################################
 # Stage 2: production image
