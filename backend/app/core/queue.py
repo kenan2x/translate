@@ -85,11 +85,18 @@ def translate_pdf_task(self, job_id: int, input_object_path: str, user_id: str):
                 thread_count=settings.PDF_ENGINE_THREAD_COUNT,
             )
 
-            def page_callback(current_page: int, total_pages: int):
-                publish_event(
-                    "page_done",
-                    {"page": current_page, "total": total_pages, "job_id": job_id},
-                )
+            def page_callback(progress):
+                # pdf2zh tek parametre gonderir (progress objesi veya sayi)
+                if isinstance(progress, (int, float)):
+                    publish_event(
+                        "page_done",
+                        {"progress": progress, "job_id": job_id},
+                    )
+                else:
+                    publish_event(
+                        "page_done",
+                        {"progress": str(progress), "job_id": job_id},
+                    )
 
             output_path = translator.translate(
                 str(input_path), str(output_dir), callback=page_callback
