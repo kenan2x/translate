@@ -23,6 +23,13 @@ celery_app.config_from_object(
         "accept_content": ["json"],
         "timezone": "Europe/Istanbul",
         "task_track_started": True,
+        # Priority queue: 0 (highest) to 9 (lowest)
+        "broker_transport_options": {
+            "priority_steps": list(range(10)),
+            "sep": ":",
+            "queue_order_strategy": "priority",
+        },
+        "task_default_priority": 5,
     }
 )
 
