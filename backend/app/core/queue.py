@@ -64,7 +64,12 @@ def translate_pdf_task(self, job_id: int, input_object_path: str, user_id: str):
     channel = f"job:{job_id}"
 
     def publish_event(event_type: str, data: dict):
-        r.publish(channel, json.dumps({"event": event_type, "data": data}))
+        msg = json.dumps({"event": event_type, "data": data})
+        # List'e yaz (SSE gec baglanirsa gecmisi okuyabilsin)
+        r.rpush(f"events:{job_id}", msg)
+        r.expire(f"events:{job_id}", 3600)
+        # Pub/sub ile canli dinleyenlere gonder
+        r.publish(channel, msg)
 
     try:
         publish_event("job_status", {"job_id": job_id, "status": "processing"})

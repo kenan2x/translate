@@ -30,6 +30,8 @@ async def stream_job_progress(
         r = aioredis.from_url(settings.REDIS_URL)
         pubsub = r.pubsub()
         channel = f"job:{job_id}"
+        events_key = f"events:{job_id}"
+
         await pubsub.subscribe(channel)
 
         try:
@@ -39,6 +41,22 @@ async def stream_job_progress(
                 {"job_id": job_id, "status": "connected"},
             )
 
+            # Replay buffered events (client may have connected late)
+            existing = await r.lrange(events_key, 0, -1)
+            finished = False
+            for raw in existing:
+                if await request.is_disconnected():
+                    return
+                data = json.loads(raw)
+                event_type = data.get("event", "job_status")
+                yield f"event: {event_type}\ndata: {json.dumps(data.get('data', data))}\n\n"
+                if event_type in ("job_complete", "error"):
+                    finished = True
+
+            if finished:
+                return
+
+            # Listen for new events via pub/sub
             while True:
                 if await request.is_disconnected():
                     break
