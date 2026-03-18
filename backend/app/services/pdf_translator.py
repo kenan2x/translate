@@ -28,13 +28,7 @@ class PDFTranslator:
         callback: Optional[Callable[[int, int], None]] = None,
         glossary: Optional[str] = None,
     ) -> str:
-        """Translate a PDF file using PDFMathTranslate.
-
-        Args:
-            input_path: Path to input PDF
-            output_dir: Directory for output PDF
-            callback: Called with (current_page, total_pages) for each page
-            glossary: Optional glossary terms to inject into prompts
+        """Translate a PDF file using PDFMathTranslate (pdf2zh).
 
         Returns:
             Path to translated PDF
@@ -44,28 +38,46 @@ class PDFTranslator:
         input_file = Path(input_path)
         output_path = str(Path(output_dir) / f"{input_file.stem}_tr.pdf")
 
-        try:
-            from pdf2zh import translate_pdf
+        # pdf2zh env variable'lardan okur
+        os.environ["OPENAI_BASE_URL"] = self.vllm_base_url
+        os.environ["OPENAI_API_KEY"] = self.vllm_api_key
+        os.environ["OPENAI_MODEL"] = self.vllm_model
 
-            translate_pdf(
-                input_path,
-                output=output_path,
-                lang_in="en",
-                lang_out="tr",
-                service="openai",
-                model=self.vllm_model,
-                envs={
-                    "OPENAI_BASE_URL": self.vllm_base_url,
-                    "OPENAI_API_KEY": self.vllm_api_key,
-                },
-                thread=self.thread_count,
-                callback=callback,
+        try:
+            from pdf2zh import translate as pdf2zh_translate
+
+            logger.info(
+                "pdf2zh baslatiyor: model=%s, endpoint=%s, thread=%d",
+                self.vllm_model, self.vllm_base_url, self.thread_count,
             )
+
+            params = {
+                "lang_in": "en",
+                "lang_out": "tr",
+                "service": f"openai:{self.vllm_model}",
+                "thread": self.thread_count,
+                "callback": callback,
+            }
+
+            # pdf2zh.translate dosya listesi alir, tuple doner (mono, dual)
+            file_mono, file_dual = pdf2zh_translate(
+                files=[input_path], **params
+            )[0]
+
+            # mono = sadece ceviri, dual = iki dilli
+            # mono dosyayi output_path'e kopyala
+            result = file_mono if file_mono and Path(file_mono).exists() else file_dual
+
+            if result and Path(result).exists():
+                import shutil
+                shutil.copy(result, output_path)
+                logger.info("Ceviri tamamlandi: %s", output_path)
+            else:
+                raise RuntimeError(f"pdf2zh cikti dosyasi bulunamadi: mono={file_mono}, dual={file_dual}")
+
         except ImportError:
             logger.warning("pdf2zh not installed, using mock translation")
-            # Fallback for development/testing
             import shutil
-
             shutil.copy(input_path, output_path)
             if callback:
                 callback(1, 1)

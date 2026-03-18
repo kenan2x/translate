@@ -101,6 +101,12 @@ services:
       VLLM_BASE_URL: ${VLLM_BASE_URL:-http://172.30.146.11:8001/v1}
       VLLM_API_KEY: ${VLLM_API_KEY:-dummy}
       VLLM_MODEL: ${VLLM_MODEL:-Qwen/Qwen3.5-122B-A10B-FP8}
+      # pdf2zh icin OpenAI uyumlu env'ler
+      OPENAI_BASE_URL: ${VLLM_BASE_URL:-http://172.30.146.11:8001/v1}
+      OPENAI_API_KEY: ${VLLM_API_KEY:-dummy}
+      OPENAI_MODEL: ${VLLM_MODEL:-Qwen/Qwen3.5-122B-A10B-FP8}
+      # DocLayout-YOLO model indirme
+      HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-172.30.146.11,localhost,127.0.0.1,10.0.0.0/8}
