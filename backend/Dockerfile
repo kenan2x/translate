@@ -15,8 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-# Sadece dependency'leri kur (app kodunu degil)
-RUN pip install --no-cache-dir --prefix=/install $(python -c "import tomllib,pathlib;d=tomllib.loads(pathlib.Path('pyproject.toml').read_text());print(' '.join(d['project']['dependencies']))")
+
+# requirements.txt olustur ve sadece dependency'leri kur
+RUN pip install --no-cache-dir tomli && \
+    python -c "import tomli,pathlib;d=tomli.loads(pathlib.Path('pyproject.toml').read_bytes());print('\n'.join(d['project']['dependencies']))" > /tmp/requirements.txt && \
+    pip install --no-cache-dir -r /tmp/requirements.txt
 
 ##############################################
 # Stage 2: production image
@@ -30,11 +33,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Dependency'leri kopyala
-COPY --from=builder /install /usr/local
+# Dependency'leri kopyala (tum site-packages)
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Uygulama kodunu kopyala
 COPY . .
+
+# Dogrulama: app modulu var mi
+RUN ls -la /app/app/ && python -c "import app; print('app module OK')"
 
 RUN chmod +x /app/entrypoint.sh
 
