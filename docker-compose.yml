@@ -45,6 +45,7 @@ services:
       retries: 5
 
   backend:
+    image: kenankarakoc/translate-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -64,14 +65,15 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
+    restart: unless-stopped
 
   celery-worker:
+    image: kenankarakoc/translate-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A app.core.queue worker --loglevel=info --concurrency=4
+    entrypoint: []
+    command: ["celery", "-A", "app.core.queue", "worker", "--loglevel=info", "--concurrency=4"]
     env_file:
       - .env
     environment:
@@ -86,21 +88,20 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
+    restart: unless-stopped
 
   frontend:
+    image: kenankarakoc/translate-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
     ports:
       - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
     depends_on:
       - backend
-    volumes:
-      - ./frontend/src:/app/src
+    restart: unless-stopped
 
 volumes:
   pgdata:

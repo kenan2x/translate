@@ -1,0 +1,24 @@
+###############################################
+# docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
+###############################################
+services:
+  test-backend:
+    image: kenankarakoc/translate-test-runner:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+    command: pytest tests/ -v --tb=short --junitxml=/app/test-results/backend.xml
+    volumes:
+      - test-results:/app/test-results
+
+  test-frontend:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - frontend-nm:/app/node_modules
+    command: sh -c "npm ci && npx vitest run"
+
+volumes:
+  test-results:
+  frontend-nm:
