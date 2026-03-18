@@ -42,5 +42,5 @@ async def update_settings(
 ):
     """Update system settings."""
     # TODO: Save to DB/Redis + audit log
-    updates = {k: v for k, v in body.dict().items() if v is not None}
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
     return {"updated": updates}

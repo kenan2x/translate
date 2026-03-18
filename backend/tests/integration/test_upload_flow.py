@@ -23,7 +23,8 @@ def test_upload_valid_pdf():
     )
     client = TestClient(app)
 
-    with patch("app.dependencies.get_settings") as mock_settings, \
+    with patch("app.api.v1.upload._check_rate_limit"), \
+         patch("app.dependencies.get_settings") as mock_settings, \
          patch("app.services.storage.Minio") as mock_minio_cls, \
          patch("app.core.queue.translate_pdf_task") as mock_task:
 
@@ -59,11 +60,12 @@ def test_upload_non_pdf_rejected():
     )
     client = TestClient(app)
 
-    resp = client.post(
-        "/api/v1/upload",
-        files={"file": ("test.txt", b"not a pdf file", "text/plain")},
-    )
-    assert resp.status_code == 422
+    with patch("app.api.v1.upload._check_rate_limit"):
+        resp = client.post(
+            "/api/v1/upload",
+            files={"file": ("test.txt", b"not a pdf file", "text/plain")},
+        )
+        assert resp.status_code == 422
 
 
 def test_upload_empty_file_rejected():
@@ -72,11 +74,12 @@ def test_upload_empty_file_rejected():
     )
     client = TestClient(app)
 
-    resp = client.post(
-        "/api/v1/upload",
-        files={"file": ("test.pdf", b"", "application/pdf")},
-    )
-    assert resp.status_code == 422
+    with patch("app.api.v1.upload._check_rate_limit"):
+        resp = client.post(
+            "/api/v1/upload",
+            files={"file": ("test.pdf", b"", "application/pdf")},
+        )
+        assert resp.status_code == 422
 
 
 def test_upload_without_auth_rejected():

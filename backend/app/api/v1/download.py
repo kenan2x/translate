@@ -51,6 +51,14 @@ async def download_translated_pdf(
         settings.MINIO_BUCKET,
     )
 
+    # Verify user owns this file (bucket isolation)
+    user_id = current_user.get("sub", "")
+    if not storage.verify_user_access(translated_path, user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: file does not belong to you",
+        )
+
     try:
         pdf_data = storage.download(translated_path)
     except Exception:

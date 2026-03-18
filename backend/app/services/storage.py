@@ -64,3 +64,13 @@ class StorageService:
             object_name,
             expires=timedelta(hours=expires_hours),
         )
+
+    def verify_user_access(self, object_name: str, user_id: str) -> bool:
+        """Check that object_name belongs to given user (path isolation)."""
+        return object_name.startswith(f"uploads/{user_id}/") or object_name.startswith(f"outputs/{user_id}/")
+
+    def list_user_files(self, user_id: str, prefix: str = "uploads") -> list:
+        """List files belonging to a specific user."""
+        user_prefix = f"{prefix}/{user_id}/"
+        objects = self.client.list_objects(self.bucket, prefix=user_prefix)
+        return [obj.object_name for obj in objects]
