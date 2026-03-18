@@ -45,18 +45,18 @@ class PDFTranslator:
 
         try:
             from pdf2zh import translate as pdf2zh_translate
-
-            # DocLayout-YOLO model kontrolu
-            model_path = Path.home() / ".cache" / "babeldoc" / "models" / "doclayout_yolo_docstructbench_imgsz1024.onnx"
-            if model_path.exists():
-                logger.info("DocLayout-YOLO model OK: %s (%d bytes)", model_path, model_path.stat().st_size)
-            else:
-                logger.warning("DocLayout-YOLO model bulunamadi: %s — indirmeye calisacak", model_path)
+            from pdf2zh.doclayout import OnnxModel
 
             logger.info(
                 "pdf2zh baslatiyor: model=%s, endpoint=%s, thread=%d",
                 self.vllm_model, self.vllm_base_url, self.thread_count,
             )
+
+            # DocLayout-YOLO model yukle
+            layout_model = OnnxModel.load_available()
+            if layout_model is None:
+                raise RuntimeError("DocLayout-YOLO model yuklenemedi")
+            logger.info("DocLayout-YOLO model yuklendi")
 
             params = {
                 "lang_in": "en",
@@ -64,6 +64,7 @@ class PDFTranslator:
                 "service": f"openai:{self.vllm_model}",
                 "thread": self.thread_count,
                 "callback": callback,
+                "model": layout_model,
             }
 
             # pdf2zh.translate dosya listesi alir, tuple doner (mono, dual)
