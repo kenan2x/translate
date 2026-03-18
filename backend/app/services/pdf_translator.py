@@ -46,6 +46,13 @@ class PDFTranslator:
         try:
             from pdf2zh import translate as pdf2zh_translate
 
+            # DocLayout-YOLO model kontrolu
+            model_path = Path.home() / ".cache" / "babeldoc" / "models" / "doclayout_yolo_docstructbench_imgsz1024.onnx"
+            if model_path.exists():
+                logger.info("DocLayout-YOLO model OK: %s (%d bytes)", model_path, model_path.stat().st_size)
+            else:
+                logger.warning("DocLayout-YOLO model bulunamadi: %s — indirmeye calisacak", model_path)
+
             logger.info(
                 "pdf2zh baslatiyor: model=%s, endpoint=%s, thread=%d",
                 self.vllm_model, self.vllm_base_url, self.thread_count,

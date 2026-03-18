@@ -46,6 +46,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
+# DocLayout-YOLO ONNX model — build sirasinda proxy ile indir
+# BabelDOC model'i ~/.cache/babeldoc/models/ altina kaydeder (~50MB)
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ARG HF_ENDPOINT=https://hf-mirror.com
+RUN mkdir -p /root/.cache/babeldoc/models && \
+    http_proxy="${HTTP_PROXY}" https_proxy="${HTTPS_PROXY}" no_proxy="${NO_PROXY}" \
+    curl -fSL --retry 3 --retry-delay 10 --connect-timeout 30 --max-time 300 \
+    -o /root/.cache/babeldoc/models/doclayout_yolo_docstructbench_imgsz1024.onnx \
+    "${HF_ENDPOINT}/wybxc/DocLayout-YOLO-DocStructBench-onnx/resolve/main/doclayout_yolo_docstructbench_imgsz1024.onnx" && \
+    echo "DocLayout-YOLO model OK: $(ls -lh /root/.cache/babeldoc/models/)" || \
+    echo "WARN: DocLayout-YOLO download failed"
+
 # Uygulama kodunu kopyala
 COPY . .
 
