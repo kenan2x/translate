@@ -111,6 +111,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  mock-vllm:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ./scripts:/app/scripts
+    command: ["python", "/app/scripts/mock_vllm.py", "--port", "8099"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8099/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    profiles:
+      - test
+
   frontend:
     image: kenankarakoc/translate-frontend:latest
     build:
