@@ -91,6 +91,8 @@ services:
     entrypoint: []
     working_dir: /app
     command: ["celery", "-A", "app.core.queue", "worker", "--loglevel=info", "--concurrency=2"]
+    volumes:
+      - ./models/babeldoc/models:/root/.cache/babeldoc/models
     environment:
       DATABASE_URL: postgresql+asyncpg://translate:translate@postgres:5432/translate_db
       REDIS_URL: redis://redis:6379/0

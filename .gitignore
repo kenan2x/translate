@@ -49,3 +49,6 @@ minio-data/
 
 # Alembic
 alembic/versions/__pycache__/
+
+# ML Models (buyuk dosyalar — git'e girmemeli)
+models/babeldoc/models/*.onnx
