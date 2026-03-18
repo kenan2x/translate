@@ -76,6 +76,17 @@ def translate_pdf_task(self, job_id: int, input_object_path: str, user_id: str):
             output_dir = Path(tmpdir) / "output"
             input_path.write_bytes(pdf_data)
 
+            # Toplam sayfa sayisini al
+            import fitz
+            doc = fitz.open(str(input_path))
+            total_pages = doc.page_count
+            doc.close()
+
+            publish_event(
+                "page_start",
+                {"page": 1, "total": total_pages, "job_id": job_id},
+            )
+
             from app.services.pdf_translator import PDFTranslator
 
             translator = PDFTranslator(
@@ -85,17 +96,24 @@ def translate_pdf_task(self, job_id: int, input_object_path: str, user_id: str):
                 thread_count=settings.PDF_ENGINE_THREAD_COUNT,
             )
 
+            page_counter = {"current": 0}
+
             def page_callback(progress):
-                # pdf2zh tek parametre gonderir (progress objesi veya sayi)
-                if isinstance(progress, (int, float)):
+                page_counter["current"] += 1
+                current = page_counter["current"]
+                publish_event(
+                    "page_done",
+                    {
+                        "page": current,
+                        "total": total_pages,
+                        "job_id": job_id,
+                        "content": f"Sayfa {current}/{total_pages} cevriliyor...",
+                    },
+                )
+                if current < total_pages:
                     publish_event(
-                        "page_done",
-                        {"progress": progress, "job_id": job_id},
-                    )
-                else:
-                    publish_event(
-                        "page_done",
-                        {"progress": str(progress), "job_id": job_id},
+                        "page_start",
+                        {"page": current + 1, "total": total_pages, "job_id": job_id},
                     )
 
             output_path = translator.translate(
@@ -106,9 +124,15 @@ def translate_pdf_task(self, job_id: int, input_object_path: str, user_id: str):
             result_data = Path(output_path).read_bytes()
             result_object = storage.upload(result_data, "translated.pdf", user_id)
 
+        download_url = f"/api/v1/download/{job_id}"
         publish_event(
             "job_complete",
-            {"job_id": job_id, "translated_path": result_object},
+            {
+                "job_id": job_id,
+                "download_url": download_url,
+                "translated_path": result_object,
+                "total_pages": total_pages,
+            },
         )
 
         return {"job_id": job_id, "translated_path": result_object, "status": "completed"}
