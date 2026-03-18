@@ -12,8 +12,6 @@ WORKDIR /build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libgl1 \
-    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
@@ -30,16 +28,9 @@ FROM python:3.12-slim
 WORKDIR /app
 ENV PYTHONPATH=/app
 
-# pdf2zh runtime icin gerekli sistem paketleri
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
-    libgl1 \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
-    fonts-noto \
     && rm -rf /var/lib/apt/lists/*
 
 # Dependency'leri kopyala (tum site-packages)
@@ -47,13 +38,12 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Uygulama kodunu kopyala
-# NOT: DocLayout-YOLO model volume ile mount edilir (docker-compose'da)
-# Indirmek icin: ./scripts/download_model.sh
 COPY . .
 
 # Dogrulama
 RUN ls -la /app/app/ && python -c "import app; print('app module OK')"
-RUN python -c "import pdf2zh; print('pdf2zh OK')" || echo "WARN: pdf2zh import failed (onnxruntime may need runtime libs)"
+RUN python -c "import fitz; print('PyMuPDF OK')" && \
+    python -c "import openai; print('OpenAI OK')"
 
 RUN chmod +x /app/entrypoint.sh
 

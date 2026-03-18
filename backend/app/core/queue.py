@@ -67,27 +67,14 @@ def translate_pdf_task(self, job_id: int, input_object_path: str, user_id: str):
         r.publish(channel, json.dumps({"event": event_type, "data": data}))
 
     try:
-        # Download input PDF
         publish_event("job_status", {"job_id": job_id, "status": "processing"})
         pdf_data = storage.download(input_object_path)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_path = Path(tmpdir) / "input.pdf"
-            output_dir = Path(tmpdir) / "output"
             input_path.write_bytes(pdf_data)
 
-            # Toplam sayfa sayisini al
-            import fitz
-            doc = fitz.open(str(input_path))
-            total_pages = doc.page_count
-            doc.close()
-
-            publish_event(
-                "page_start",
-                {"page": 1, "total": total_pages, "job_id": job_id},
-            )
-
-            from app.services.pdf_translator import PDFTranslator
+            from app.services.pdf_translator import PDFTranslator, PageResult
 
             translator = PDFTranslator(
                 vllm_base_url=settings.VLLM_BASE_URL,
@@ -96,33 +83,32 @@ def translate_pdf_task(self, job_id: int, input_object_path: str, user_id: str):
                 thread_count=settings.PDF_ENGINE_THREAD_COUNT,
             )
 
-            page_counter = {"current": 0}
-
-            def page_callback(progress):
-                page_counter["current"] += 1
-                current = page_counter["current"]
+            def page_callback(result: PageResult):
                 publish_event(
                     "page_done",
                     {
-                        "page": current,
-                        "total": total_pages,
+                        "page": result.page,
+                        "total": result.total,
+                        "content": result.translated,
+                        "elapsed_ms": result.elapsed_ms,
                         "job_id": job_id,
-                        "content": f"Sayfa {current}/{total_pages} cevriliyor...",
                     },
                 )
-                if current < total_pages:
-                    publish_event(
-                        "page_start",
-                        {"page": current + 1, "total": total_pages, "job_id": job_id},
-                    )
 
-            output_path = translator.translate(
-                str(input_path), str(output_dir), callback=page_callback
+            results = translator.translate(
+                str(input_path), callback=page_callback,
             )
 
-            # Upload result to MinIO
-            result_data = Path(output_path).read_bytes()
-            result_object = storage.upload(result_data, "translated.pdf", user_id)
+            total_pages = len(results)
+
+            # Cevirilmis metinleri JSON olarak MinIO'ya yukle
+            translated_data = json.dumps(
+                [{"page": r.page, "content": r.translated} for r in results],
+                ensure_ascii=False,
+            ).encode("utf-8")
+            result_object = storage.upload(
+                translated_data, f"{job_id}_translated.json", user_id,
+            )
 
         download_url = f"/api/v1/download/{job_id}"
         publish_event(
@@ -135,9 +121,17 @@ def translate_pdf_task(self, job_id: int, input_object_path: str, user_id: str):
             },
         )
 
-        return {"job_id": job_id, "translated_path": result_object, "status": "completed"}
+        return {
+            "job_id": job_id,
+            "translated_path": result_object,
+            "total_pages": total_pages,
+            "status": "completed",
+        }
 
     except Exception as e:
         logger.exception(f"Translation failed for job {job_id}")
-        publish_event("error", {"job_id": job_id, "code": "TRANSLATION_FAILED", "message": str(e)})
+        publish_event(
+            "error",
+            {"job_id": job_id, "code": "TRANSLATION_FAILED", "message": str(e)},
+        )
         return {"job_id": job_id, "status": "failed", "error": str(e)}
