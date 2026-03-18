@@ -3,6 +3,11 @@
 ##############################################
 FROM python:3.12-slim AS builder
 
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+ARG NO_PROXY
+ENV HTTP_PROXY=${HTTP_PROXY} HTTPS_PROXY=${HTTPS_PROXY} NO_PROXY=${NO_PROXY}
+
 WORKDIR /build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

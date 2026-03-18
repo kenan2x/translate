@@ -37,6 +37,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-}
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     environment:
@@ -77,6 +81,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-}
     entrypoint: []
     working_dir: /app
     command: ["celery", "-A", "app.core.queue", "worker", "--loglevel=info", "--concurrency=2"]
@@ -108,6 +116,9 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+        HTTP_PROXY: ${HTTP_PROXY:-}
+        HTTPS_PROXY: ${HTTPS_PROXY:-}
+        NO_PROXY: ${NO_PROXY:-}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
