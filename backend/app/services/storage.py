@@ -4,6 +4,7 @@ import io
 import uuid
 from typing import Optional
 
+import urllib3
 from minio import Minio
 
 
@@ -16,11 +17,17 @@ class StorageService:
         bucket: str,
         secure: bool = False,
     ):
+        # Proxy'siz baglanti — MinIO ic agda, proxy'den gecmemeli
+        http_client = urllib3.PoolManager(
+            timeout=urllib3.Timeout(connect=5, read=30),
+            retries=urllib3.Retry(total=3, backoff_factor=0.2),
+        )
         self.client = Minio(
             endpoint,
             access_key=access_key,
             secret_key=secret_key,
             secure=secure,
+            http_client=http_client,
         )
         self.bucket = bucket
         self._ensure_bucket()

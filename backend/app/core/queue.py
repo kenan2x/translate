@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import tempfile
 from pathlib import Path
 
@@ -11,13 +12,14 @@ from app.config import Settings
 
 logger = logging.getLogger(__name__)
 
-# Celery app - configured at import time with defaults
-# Actual settings are loaded from env
+# Redis URL: env'den oku, yoksa localhost fallback
+_redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+
 celery_app = Celery("translate")
 celery_app.config_from_object(
     {
-        "broker_url": "redis://localhost:6379/0",
-        "result_backend": "redis://localhost:6379/0",
+        "broker_url": _redis_url,
+        "result_backend": _redis_url,
         "task_serializer": "json",
         "result_serializer": "json",
         "accept_content": ["json"],
