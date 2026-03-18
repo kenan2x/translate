@@ -80,6 +80,7 @@ async def upload_pdf(
             settings.MINIO_ACCESS_KEY,
             settings.MINIO_SECRET_KEY,
             settings.MINIO_BUCKET,
+            secure=settings.MINIO_SECURE,
         )
 
         object_path = storage.upload(content, file.filename or "upload.pdf", user_id)

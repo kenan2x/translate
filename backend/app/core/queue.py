@@ -58,6 +58,7 @@ def translate_pdf_task(self, job_id: int, input_object_path: str, user_id: str):
         settings.MINIO_ACCESS_KEY,
         settings.MINIO_SECRET_KEY,
         settings.MINIO_BUCKET,
+        secure=settings.MINIO_SECURE,
     )
 
     channel = f"job:{job_id}"

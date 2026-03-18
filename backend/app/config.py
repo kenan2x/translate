@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY: str
     MINIO_SECRET_KEY: str
     MINIO_BUCKET: str = "translate-files"
+    MINIO_SECURE: bool = False
 
     # Auth bypass for dev/test (set AUTH_DISABLED=true to skip Authentik)
     AUTH_DISABLED: bool = False

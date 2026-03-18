@@ -53,6 +53,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-translate-files}
+      MINIO_SECURE: ${MINIO_SECURE:-false}
 
       # Auth bypass
       AUTH_DISABLED: "true"
@@ -95,6 +96,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-translate-files}
+      MINIO_SECURE: ${MINIO_SECURE:-false}
       AUTH_DISABLED: "true"
       VLLM_BASE_URL: ${VLLM_BASE_URL:-http://172.30.146.11:8001/v1}
       VLLM_API_KEY: ${VLLM_API_KEY:-dummy}

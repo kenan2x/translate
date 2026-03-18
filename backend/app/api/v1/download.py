@@ -49,6 +49,7 @@ async def download_translated_pdf(
         settings.MINIO_ACCESS_KEY,
         settings.MINIO_SECRET_KEY,
         settings.MINIO_BUCKET,
+        secure=settings.MINIO_SECURE,
     )
 
     # Verify user owns this file (bucket isolation)
