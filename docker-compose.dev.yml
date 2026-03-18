@@ -12,8 +12,7 @@ services:
       POSTGRES_USER: translate
       POSTGRES_PASSWORD: translate
       POSTGRES_DB: translate_db
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    # Port disari acilmaz — sadece backend ve celery erisir
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -24,8 +23,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
+    # Port disari acilmaz — sadece backend ve celery erisir
     volumes:
       - redisdata:/data
     healthcheck:
@@ -42,7 +40,7 @@ services:
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     environment:
-      # DB & Redis (container network)
+      # DB & Redis (container ag isimleri — degistirme)
       DATABASE_URL: postgresql+asyncpg://translate:translate@postgres:5432/translate_db
       REDIS_URL: redis://redis:6379/0
 
@@ -80,6 +78,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     entrypoint: []
+    working_dir: /app
     command: ["celery", "-A", "app.core.queue", "worker", "--loglevel=info", "--concurrency=2"]
     environment:
       DATABASE_URL: postgresql+asyncpg://translate:translate@postgres:5432/translate_db

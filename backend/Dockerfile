@@ -3,14 +3,20 @@
 ##############################################
 FROM python:3.12-slim AS builder
 
-WORKDIR /app
+WORKDIR /build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-RUN pip install --no-cache-dir --prefix=/install .
+# Sadece dependency'leri kur (app kodunu degil)
+RUN pip install --no-cache-dir --prefix=/install $(python -c "
+import tomllib, pathlib
+data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+deps = data['project']['dependencies']
+print(' '.join(deps))
+")
 
 ##############################################
 # Stage 2: production image
@@ -24,13 +30,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Dependency'leri kopyala
 COPY --from=builder /install /usr/local
 
+# Uygulama kodunu kopyala
 COPY . .
 
 RUN chmod +x /app/entrypoint.sh
 
-# non-root user (entrypoint runs as root for migrations, then exec drops)
 EXPOSE 8080
 
 ENTRYPOINT ["/app/entrypoint.sh"]
